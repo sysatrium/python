@@ -47,10 +47,12 @@ class ServerConfigurationBuilder:
         self.ssl_enabled: Optional[bool] = None
 
     def _validate_host(self, host: str):
-        if not host:
+        if not host or not isinstance(host, str):
             raise ValueError("Host is required and must be not-empty string.")
 
     def _validate_port(self, port: int):
+        if not isinstance(port, int):
+            raise ValueError(f"Port is required and must be an integer, got: {port}")
         if port < MIN_PORT or port > MAX_PORT:
             raise ValueError(
                 f"Port is required and must be an integer between {MIN_PORT} and {MAX_PORT}, got: {port}"
@@ -61,16 +63,21 @@ class ServerConfigurationBuilder:
             raise ValueError(
                 "SSL is enabled but no SSL certificate or key was provided."
             )
-        elif ssl_enabled is False and (ssl_cert or ssl_key):
+        elif ssl_enabled is False and (
+            (
+                isinstance(ssl_cert, SecretStr)
+                or isinstance(ssl_key, SecretStr)
+                or isinstance(ssl_cert, str)
+                or isinstance(ssl_key, str)
+            )
+        ):
             raise ValueError("SSL is disabled but SSL certificate or key was provided.")
 
     def set_host(self, host: str) -> "ServerConfigurationBuilder":
-        self._validate_host(host)
         self.host = host
         return self
 
     def set_port(self, port: int) -> "ServerConfigurationBuilder":
-        self._validate_port(port)
         self.port = port
         return self
 
@@ -106,6 +113,8 @@ class ServerConfigurationBuilder:
         return self
 
     def build(self) -> ServerConfiguration:
+        self._validate_host(self.host)
+        self._validate_port(self.port)
         self._validate_ssl(self.ssl_enabled, self.ssl_cert, self.ssl_key)
 
         config = ServerConfiguration(
@@ -125,8 +134,8 @@ class ServerConfigurationBuilder:
 
 if __name__ == "__main__":
     builder = ServerConfigurationBuilder()
-    builder.set_host("localhost").set_port(8080).set_logging_level(
-        "DEBUG"
-    ).set_ssl_cert("/path/to/cert").set_ssl_key("/path/to/key").set_ssl_enabled(True)
+    builder.set_port(8080).set_logging_level("DEBUG").set_ssl_cert("/path").set_ssl_key(
+        "/path"
+    ).set_ssl_enabled(True)
     config = builder.build()
     print(config.__dict__)
