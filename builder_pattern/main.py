@@ -36,6 +36,9 @@ class ServerConfiguration:
 
 class ServerConfigurationBuilder:
     def __init__(self):
+        self._reset()
+
+    def _reset(self):
         for field in fields(ServerConfiguration):
             setattr(self, field.name, field.default)
 
@@ -169,6 +172,7 @@ class ServerConfigurationBuilder:
             ssl_key=self.ssl_key,
             ssl_enabled=self.ssl_enabled,
         )
+        self._reset()
         return config
 
 
@@ -188,11 +192,10 @@ class Director:
 
 if __name__ == "__main__":
     director = Director()
-    prod = Director()
-    production = prod.production_configuration()
+    prod = director.production_configuration()
     director.builder.set_port(8080).set_logging_level("DEBUG").set_ssl_cert(
         "/path"
     ).set_ssl_key("/path").set_ssl_enabled(True).set_max_connections(100)
     config = director.builder.build()
     print(config)
-    print(production)
+    print(prod)
