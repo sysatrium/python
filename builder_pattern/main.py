@@ -193,7 +193,7 @@ class Director:
 if __name__ == "__main__":
     director = Director()
     prod = director.production_configuration()
-    director.builder.set_port(8080).set_logging_level("DEBUG").set_ssl_cert(
+    director.builder.set_port(81).set_logging_level("DEBUG").set_ssl_cert(
         "/path"
     ).set_ssl_key("/path").set_ssl_enabled(True).set_max_connections(100)
     config = director.builder.build()
