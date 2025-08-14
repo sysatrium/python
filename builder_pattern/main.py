@@ -177,7 +177,7 @@ class Director:
     def __init__(self):
         self.builder = ServerConfigurationBuilder()
 
-    def producation_configuration(self):
+    def production_configuration(self):
         return (
             self.builder.set_host("127.0.0.1")
             .set_port(8080)
@@ -189,7 +189,7 @@ class Director:
 if __name__ == "__main__":
     director = Director()
     prod = Director()
-    production = prod.producation_configuration()
+    production = prod.production_configuration()
     director.builder.set_port(8080).set_logging_level("DEBUG").set_ssl_cert(
         "/path"
     ).set_ssl_key("/path").set_ssl_enabled(True).set_max_connections(100)
