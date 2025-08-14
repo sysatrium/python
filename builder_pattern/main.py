@@ -189,6 +189,7 @@ class Director:
         self.builder = ServerConfigurationBuilder()
 
     def production_configuration(self):
+        self.builder = ServerConfigurationBuilder()
         return (
             self.builder.set_host("127.0.0.1")
             .set_port(8080)
