@@ -2,10 +2,11 @@
 # Description: This code demonstrates the Builder Pattern in Python, allowing for flexible and readable configuration of server settings.
 
 from typing import List, Optional, Union
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pydantic import SecretStr
 import enum
 import re
+import os
 
 
 class LogLevel(enum.Enum):
@@ -21,30 +22,47 @@ MAX_PORT = 65535
 
 @dataclass(frozen=True)
 class ServerConfiguration:
-    host: str
-    port: int
-    max_connections: Optional[int]
-    logging_level: Optional[Union[LogLevel, str]]
-    static_files_directory: Optional[str]
-    allowed_hosts: Optional[List[str]]
-    timeout: Optional[int]
-    ssl_cert: Optional[Union[SecretStr, str]]
-    ssl_key: Optional[Union[SecretStr, str]]
-    ssl_enabled: Optional[bool]
+    host: str = "localhost"
+    port: int = 80
+    max_connections: Optional[int] = None
+    logging_level: Optional[Union[LogLevel, str]] = None
+    static_files_directory: Optional[str] = None
+    allowed_hosts: Optional[List[str]] = None
+    timeout: Optional[int] = None
+    ssl_cert: Optional[Union[SecretStr, str]] = None
+    ssl_key: Optional[Union[SecretStr, str]] = None
+    ssl_enabled: Optional[bool] = False
 
 
 class ServerConfigurationBuilder:
     def __init__(self):
-        self.host: str = "localhost"
-        self.port: int = 80
-        self.max_connections: Optional[int] = 100
-        self.logging_level: Optional[Union[LogLevel, str]] = LogLevel.INFO
-        self.static_files_directory: Optional[str] = None
-        self.allowed_hosts: Optional[List[str]] = None
-        self.timeout: Optional[int] = None
-        self.ssl_cert: Optional[Union[SecretStr, str]] = None
-        self.ssl_key: Optional[Union[SecretStr, str]] = None
-        self.ssl_enabled: Optional[bool] = None
+        for field in fields(ServerConfiguration):
+            setattr(self, field.name, field.default)
+
+    def _validate_allowed_hosts(self, allowed_hosts: Optional[List[str]]):
+        if allowed_hosts:
+            for host in allowed_hosts:
+                if not re.match(r"^[a-zA-Z0-9.-]+$", host):
+                    raise ValueError(
+                        f"Allowed host must be a valid hostname, got: {host}"
+                    )
+
+    def _validate_static_files_directory(self, static_files_directory: Optional[str]):
+        if static_files_directory:
+            if not os.path.isdir(static_files_directory):
+                raise ValueError(
+                    f"Static files directory must be a valid directory, got: {static_files_directory}"
+                )
+
+    def _validate_timeout(self, timeout: Optional[int]):
+        if timeout and timeout < 0:
+            raise ValueError(f"Timeout must be a non-negative integer, got: {timeout}")
+
+    def _validate_max_connections(self, max_connections: Optional[int]):
+        if max_connections and max_connections < 0:
+            raise ValueError(
+                f"Max connections must be a non-negative integer, got: {max_connections}"
+            )
 
     def _validate_host(self, host: str):
         if not host or not isinstance(host, str):
@@ -59,26 +77,44 @@ class ServerConfigurationBuilder:
             )
 
     def _validate_ssl(self, ssl_enabled: bool, ssl_cert: SecretStr, ssl_key: SecretStr):
-        if ssl_enabled is True and (not ssl_cert or not ssl_key):
-            raise ValueError(
-                "SSL is enabled but no SSL certificate or key was provided."
-            )
-        elif ssl_enabled is False and (
-            (
-                isinstance(ssl_cert, SecretStr)
-                or isinstance(ssl_key, SecretStr)
-                or isinstance(ssl_cert, str)
-                or isinstance(ssl_key, str)
-            )
-        ):
-            raise ValueError("SSL is disabled but SSL certificate or key was provided.")
+        if ssl_enabled is True:
+            if not ssl_cert or not ssl_key:
+                raise ValueError(
+                    "SSL is enabled but no SSL certificate or key was provided."
+                )
+        else:
+            if ssl_cert or ssl_key:
+                raise ValueError(
+                    "SSL is disabled but SSL certificate or key was provided."
+                )
 
     def set_host(self, host: str) -> "ServerConfigurationBuilder":
+        self._validate_host(host)
         self.host = host
         return self
 
     def set_port(self, port: int) -> "ServerConfigurationBuilder":
+        self._validate_port(port)
         self.port = port
+        return self
+
+    def set_max_connections(
+        self, max_connections: Optional[int]
+    ) -> "ServerConfigurationBuilder":
+        self._validate_max_connections(max_connections)
+        self.max_connections = max_connections
+        return self
+
+    def set_timeout(self, timeout: Optional[int]) -> "ServerConfigurationBuilder":
+        self._validate_timeout(timeout)
+        self.timeout = timeout
+        return self
+
+    def set_static_files_directory(
+        self, static_files_directory: Optional[str]
+    ) -> "ServerConfigurationBuilder":
+        self._validate_static_files_directory(static_files_directory)
+        self.static_files_directory = static_files_directory
         return self
 
     def set_logging_level(
@@ -112,9 +148,19 @@ class ServerConfigurationBuilder:
         self.ssl_key = ssl_key if isinstance(ssl_key, SecretStr) else SecretStr(ssl_key)
         return self
 
+    def set_allowed_hosts(
+        self, allowed_hosts: Optional[List[str]]
+    ) -> "ServerConfigurationBuilder":
+        self._validate_allowed_hosts(allowed_hosts)
+        self.allowed_hosts = allowed_hosts
+        return self
+
     def build(self) -> ServerConfiguration:
         self._validate_host(self.host)
         self._validate_port(self.port)
+        self._validate_max_connections(self.max_connections)
+        self._validate_timeout(self.timeout)
+        self._validate_static_files_directory(self.static_files_directory)
         self._validate_ssl(self.ssl_enabled, self.ssl_cert, self.ssl_key)
 
         config = ServerConfiguration(
@@ -136,6 +182,6 @@ if __name__ == "__main__":
     builder = ServerConfigurationBuilder()
     builder.set_port(8080).set_logging_level("DEBUG").set_ssl_cert("/path").set_ssl_key(
         "/path"
-    ).set_ssl_enabled(True)
+    ).set_ssl_enabled(True).set_max_connections(100)
     config = builder.build()
     print(config.__dict__)
