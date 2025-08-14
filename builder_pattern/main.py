@@ -24,11 +24,11 @@ MAX_PORT = 65535
 class ServerConfiguration:
     host: str = "localhost"
     port: int = 80
-    max_connections: Optional[int] = None
+    max_connections: Optional[int] = 50
     logging_level: Optional[Union[LogLevel, str]] = None
     static_files_directory: Optional[str] = None
     allowed_hosts: Optional[List[str]] = None
-    timeout: Optional[int] = None
+    timeout: Optional[int] = 10
     ssl_cert: Optional[Union[SecretStr, str]] = None
     ssl_key: Optional[Union[SecretStr, str]] = None
     ssl_enabled: Optional[bool] = False
@@ -49,7 +49,7 @@ class ServerConfigurationBuilder:
 
     def _validate_static_files_directory(self, static_files_directory: Optional[str]):
         if static_files_directory:
-            if not os.path.isdir(static_files_directory):
+            if not os.path.exists(static_files_directory):
                 raise ValueError(
                     f"Static files directory must be a valid directory, got: {static_files_directory}"
                 )
@@ -156,12 +156,6 @@ class ServerConfigurationBuilder:
         return self
 
     def build(self) -> ServerConfiguration:
-        self._validate_host(self.host)
-        self._validate_port(self.port)
-        self._validate_max_connections(self.max_connections)
-        self._validate_timeout(self.timeout)
-        self._validate_static_files_directory(self.static_files_directory)
-        self._validate_ssl(self.ssl_enabled, self.ssl_cert, self.ssl_key)
 
         config = ServerConfiguration(
             host=self.host,
@@ -178,10 +172,27 @@ class ServerConfigurationBuilder:
         return config
 
 
+# Director
+class Director:
+    def __init__(self):
+        self.builder = ServerConfigurationBuilder()
+
+    def producation_configuration(self):
+        return (
+            self.builder.set_host("127.0.0.1")
+            .set_port(8080)
+            .set_logging_level("INFO")
+            .build()
+        )
+
+
 if __name__ == "__main__":
-    builder = ServerConfigurationBuilder()
-    builder.set_port(8080).set_logging_level("DEBUG").set_ssl_cert("/path").set_ssl_key(
+    director = Director()
+    prod = Director()
+    production = prod.producation_configuration()
+    director.builder.set_port(8080).set_logging_level("DEBUG").set_ssl_cert(
         "/path"
-    ).set_ssl_enabled(True).set_max_connections(100)
-    config = builder.build()
-    print(config.__dict__)
+    ).set_ssl_key("/path").set_ssl_enabled(True).set_max_connections(100)
+    config = director.builder.build()
+    print(config)
+    print(production)
