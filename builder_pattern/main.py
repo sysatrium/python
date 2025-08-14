@@ -92,31 +92,26 @@ class ServerConfigurationBuilder:
                 )
 
     def set_host(self, host: str) -> "ServerConfigurationBuilder":
-        self._validate_host(host)
         self.host = host
         return self
 
     def set_port(self, port: int) -> "ServerConfigurationBuilder":
-        self._validate_port(port)
         self.port = port
         return self
 
     def set_max_connections(
         self, max_connections: Optional[int]
     ) -> "ServerConfigurationBuilder":
-        self._validate_max_connections(max_connections)
         self.max_connections = max_connections
         return self
 
     def set_timeout(self, timeout: Optional[int]) -> "ServerConfigurationBuilder":
-        self._validate_timeout(timeout)
         self.timeout = timeout
         return self
 
     def set_static_files_directory(
         self, static_files_directory: Optional[str]
     ) -> "ServerConfigurationBuilder":
-        self._validate_static_files_directory(static_files_directory)
         self.static_files_directory = static_files_directory
         return self
 
@@ -141,24 +136,36 @@ class ServerConfigurationBuilder:
         self, ssl_cert: Optional[Union[SecretStr, str]]
     ) -> "ServerConfigurationBuilder":
         self.ssl_cert = (
-            ssl_cert if isinstance(ssl_cert, SecretStr) else SecretStr(ssl_cert)
+            ssl_cert
+            if isinstance(ssl_cert, SecretStr)
+            else SecretStr(ssl_cert) if ssl_cert is not None else None
         )
         return self
 
     def set_ssl_key(
         self, ssl_key: Optional[Union[SecretStr, str]]
     ) -> "ServerConfigurationBuilder":
-        self.ssl_key = ssl_key if isinstance(ssl_key, SecretStr) else SecretStr(ssl_key)
+        self.ssl_key = (
+            ssl_key
+            if isinstance(ssl_key, SecretStr)
+            else SecretStr(ssl_key) if ssl_key is not None else None
+        )
         return self
 
     def set_allowed_hosts(
         self, allowed_hosts: Optional[List[str]]
     ) -> "ServerConfigurationBuilder":
-        self._validate_allowed_hosts(allowed_hosts)
         self.allowed_hosts = allowed_hosts
         return self
 
     def build(self) -> ServerConfiguration:
+        self._validate_host(self.host)
+        self._validate_port(self.port)
+        self._validate_max_connections(self.max_connections)
+        self._validate_timeout(self.timeout)
+        self._validate_static_files_directory(self.static_files_directory)
+        self._validate_allowed_hosts(self.allowed_hosts)
+        self._validate_ssl(self.ssl_enabled, self.ssl_cert, self.ssl_key)
 
         config = ServerConfiguration(
             host=self.host,
